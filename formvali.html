@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Ultimate Existential Crisis Simulator</title>
+<style>
+body { 
+  font-family: 'Comic Sans MS', cursive; 
+  padding: 20px; 
+  background: #f0f0f0; 
+  user-select: none;
+  overflow-x: hidden;
+}
+input { padding: 8px; width: 260px; margin-bottom: 4px; font-family: monospace; transition: all 0.05s ease; }
+.error { color: red; margin: 0; font-weight: bold; font-size: 14px; }
+.field { margin-bottom: 12px; position: relative; padding: 10px; border: 1px dashed transparent; }
+button { padding: 10px 16px; cursor: pointer; font-weight: bold; }
+#captcha-container { font-size: 20px; letter-spacing: 10px; background: #ddd; width: 150px; text-align: center; margin: 10px 0; font-style: italic; text-decoration: line-through; }
+
+/* Fake annoying popups */
+.fake-ad {
+  position: absolute;
+  background: yellow;
+  border: 3px solid red;
+  padding: 10px;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 9999;
+  cursor: pointer;
+  box-shadow: 5px 5px 0px #000;
+}
+</style>
+</head>
+<body>
+
+<h2>Sign Up (Paying 50 AED entry fee not required yet)</h2>
+<p style="font-size: 12px; color: gray;">Tip: Move your mouse slowly, or the interface gets angry.</p>
+
+<form id="signupForm">
+  <div class="field" id="nameField">
+    <label>Name (Exactly 7 letters + random case chaos):</label><br>
+    <input id="name" type="text" placeholder="yOuRnAmE" autocomplete="off">
+    <p id="nameError" class="error"></p>
+  </div>
+
+  <div class="field" id="emailField">
+    <label>Email (Keyboard disabled for security):</label><br>
+    <input id="email" type="text" readonly placeholder="Slider only, bucko">
+    <div>
+      <input type="range" id="charSlider" min="32" max="126" value="65" style="width:200px;">
+      <span id="sliderChar" style="font-size:20px; font-weight:bold;">A</span>
+      <button type="button" id="addCharBtn">Insert Char</button>
+      <button type="button" id="backspaceBtn" style="background:orange;">Delete</button>
+    </div>
+    <p id="emailError" class="error"></p>
+  </div>
+
+  <div class="field" id="passField">
+    <label>Password (Include current minute of the hour):</label><br>
+    <input id="password" type="password" placeholder="Type fast or it wipes...">
+    <p id="passError" class="error"></p>
+  </div>
+
+  <div class="field" id="confirmField">
+    <label>Confirm Password:</label><br>
+    <input id="confirm" type="password" placeholder="Match it if you can">
+    <p id="confirmError" class="error"></p>
+  </div>
+
+  <div class="field" id="captchaField">
+    <label>Solve:</label>
+    <div id="captcha-container">4 + 4 × 0 + 1 x 4012 - 1</div>
+    <input id="captchaInput" type="text" placeholder="Type answer">
+    <p id="captchaError" class="error"></p>
+  </div>
+
+  <!-- Terms trap -->
+  <div class="field">
+    <input type="checkbox" id="termsCheck" style="width: auto;">
+    <label for="termsCheck">I agree to sell my soul and accept lag</label>
+  </div>
+
+  <button type="submit" id="submitBtn" style="position: absolute; left: 20px; transition: all 0.1s ease;">Create Account</button>
+</form>
+
+<p id="result" style="margin-top: 150px;"></p>
+
+<script>
+const form = document.getElementById("signupForm");
+const nameInput = document.getElementById("name");
+const emailInput = document.getElementById("email");
+const passInput = document.getElementById("password");
+const confirmInput = document.getElementById("confirm");
+const captchaInput = document.getElementById("captchaInput");
+const submitBtn = document.getElementById("submitBtn");
+const termsCheck = document.getElementById("termsCheck");
+
+const nameError = document.getElementById("nameError");
+const emailError = document.getElementById("emailError");
+const passError = document.getElementById("passError");
+const captchaError = document.getElementById("captchaError");
+const result = document.getElementById("result");
+
+const charSlider = document.getElementById("charSlider");
+const sliderChar = document.getElementById("sliderChar");
+const addCharBtn = document.getElementById("addCharBtn");
+const backspaceBtn = document.getElementById("backspaceBtn");
+
+// --- 1. MOUSE RAGE MECHANIC ---
+// If they move the mouse too fast, the inputs start drifting away from the cursor
+let lastX = 0, lastY = 0;
+window.addEventListener('mousemove', (e) => {
+  let speed = Math.sqrt(Math.pow(e.clientX - lastX, 2) + Math.pow(e.clientY - lastY, 2));
+  if (speed > 80) { // Fast movement detected
+    document.querySelectorAll('input').forEach(input => {
+      input.style.transform = `translate(${Math.random() * 40 - 20}px, ${Math.random() * 40 - 20}px)`;
+    });
+  }
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+
+// --- 2. THE CHAT GIPHY / POPUP DISTRACTION ---
+// Spawns annoying fake un-closable ads right where they are trying to type
+setInterval(() => {
+  if (Math.random() > 0.7) {
+    const ad = document.createElement('div');
+    ad.className = 'fake-ad';
+    ad.style.left = `${Math.random() * (window.innerWidth - 200)}px`;
+    ad.style.top = `${Math.random() * (window.innerHeight - 100)}px`;
+    ad.innerHTML = `⚠️ YOU WON A FREE IPAD! <br><span style="font-size:9px;color:blue;">[Click to close - Lie]</span>`;
+    ad.onclick = () => { ad.remove(); }; // Clicking it just deletes it, but it breaks their focus
+    document.body.appendChild(ad);
+    setTimeout(() => ad.remove(), 4000); // disappearing act
+  }
+}, 3000);
+
+// --- 3. THE SLIDER INVERSION TRAP ---
+// Randomly flips the min/max of the slider so left goes up and right goes down
+setInterval(() => {
+  if(Math.random() > 0.5) {
+    const currentMin = charSlider.min;
+    charSlider.min = charSlider.max === "126" ? "32" : "126";
+    charSlider.max = charSlider.min === "32" ? "126" : "32";
+  }
+}, 4000);
+
+// Slider Mechanics
+charSlider.addEventListener("input", () => {
+  sliderChar.textContent = String.fromCharCode(Math.abs(charSlider.value));
+});
+addCharBtn.addEventListener("click", () => {
+  emailInput.value += sliderChar.textContent;
+  validateEmail();
+});
+backspaceBtn.addEventListener("click", () => {
+  emailInput.value = emailInput.value.slice(0, -1);
+  validateEmail();
+});
+
+// Name Chaos: Every 3rd character typed becomes a random emoji instead
+let typeCount = 0;
+nameInput.addEventListener("input", () => {
+  typeCount++;
+  let val = nameInput.value;
+  if(val.length > 0) {
+    if(typeCount % 3 === 0) {
+      const emojis = ['🤡', '👹', '💀', '💩', '🫠'];
+      nameInput.value = val.slice(0, -1) + emojis[Math.floor(Math.random() * emojis.length)];
+      nameError.textContent = "Data corrupted by atmospheric noise.";
+      return;
+    }
+    let lastChar = val.slice(-1);
+    lastChar = Math.random() > 0.5 ? lastChar.toUpperCase() : lastChar.toLowerCase();
+    nameInput.value = val.slice(0, -1) + lastChar;
+  }
+  validateName();
+});
+
+// Evil field swapping on password focus
+passInput.addEventListener("focus", () => {
+  const fields = [document.getElementById("nameField"), document.getElementById("emailField"), document.getElementById("passField"), document.getElementById("confirmField")];
+  // Completely shuffles the order of the form fields vertically
+  fields.sort(() => Math.random() - 0.5);
+  fields.forEach(field => form.insertBefore(field, document.getElementById("captchaField")));
+  passError.textContent = "Security protocol layout scrambled.";
+});
+
+// The 1.5-Second Nuke (Even faster now)
+let nuke;
+[passInput, confirmInput].forEach(el => {
+  el.addEventListener("input", () => {
+    clearTimeout(nuke);
+    nuke = setTimeout(() => {
+      passInput.value = "";
+      confirmInput.value = "";
+      passError.textContent = "TOO SLOW. The security vacuum cleared the fields.";
+    }, 1500);
+  });
+});
+
+// Runaway Button: Teleports and shrinks
+let scale = 1;
+submitBtn.addEventListener("mouseover", () => {
+  const x = Math.random() * (window.innerWidth - 150);
+  const y = Math.random() * (window.innerHeight - 100);
+  scale = Math.max(0.2, scale - 0.08); 
+  submitBtn.style.left = `${x}px`;
+  submitBtn.style.top = `${y}px`;
+  submitBtn.style.transform = `scale(${scale})`;
+});
+
+const showError = (el, msg) => el.textContent = msg;
+
+const validateName = () => {
+  if (nameInput.value.length !== 7) { showError(nameError, "Must be exactly 7 characters."); return false; }
+  nameError.textContent = ""; return true;
+};
+
+const validateEmail = () => {
+  if (!emailInput.value.includes("@") || !emailInput.value.includes(".")) { 
+    showError(emailError, "Invalid email. Slide harder."); return false; 
+  }
+  emailError.textContent = ""; return true;
+};
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const minute = new Date().getMinutes().toString();
+  
+  // --- 4. THE TERMS CHECKBOX BETRAYAL ---
+  if (!termsCheck.checked) {
+    alert("You didn't check the box. Resetting everything.");
+    form.reset();
+    return;
+  }
+
+  if (captchaInput.value === "42") {
+    showError(captchaError, "Lockdown protocol initiated.");
+    document.querySelectorAll('input').forEach(i => i.disabled = true);
+    setTimeout(() => {
+      document.querySelectorAll('input').forEach(i => i.disabled = false);
+      captchaError.textContent = "";
+    }, 5000);
+    return;
+  }
+
+  if (captchaInput.value !== "4015") {
+    showError(captchaError, "Incorrect logic processing.");
+  } else if (!passInput.value.includes(minute)) {
+    showError(passError, `Missing timestamp: ${minute}`);
+  } else if (validateName() && validateEmail()) {
+    // Ultimate fake success
+    alert("Parsing registration details...");
+    // Redirects them to a 10 hour loop of elevator music or a broken page
+    window.location.href = "https://www.google.com/search?q=how+to+deal+with+anger+issues";
+  }
+});
+</script>
+
+</body>
+</html>
